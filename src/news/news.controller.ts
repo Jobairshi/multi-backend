@@ -8,31 +8,48 @@ import {
   Delete,
   UseGuards,
   UseInterceptors,
+  Inject,
 } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { NewsService } from './news.service';
 import { CreateNewsDto, UpdateNewsDto } from './dto/news.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
+import {
+  Cache,
+  CACHE_MANAGER,
+  CacheInterceptor,
+  CacheKey,
+  CacheTTL,
+} from '@nestjs/cache-manager';
 
 @Controller('news')
-@UseInterceptors(CacheInterceptor)
 export class NewsController {
-  constructor(private readonly newsService: NewsService) {}
+  constructor(
+    private readonly newsService: NewsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(
+  async create(
     @Body() createNewsDto: CreateNewsDto,
     @GetUser()
     user: {
       userId: string;
     },
   ) {
-    return this.newsService.create(createNewsDto, user);
+    const result = await this.newsService.create(createNewsDto, user);
+
+    await this.cacheManager.del('news_all');
+    await this.cacheManager.clear();
+    console.log('✅ Cache cleared after creating news');
+
+    return result;
   }
 
   @Get()
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('news_all')
   @CacheTTL(60) // Cache for 60 seconds
   findAll() {
     return this.newsService.findAll();
@@ -45,14 +62,15 @@ export class NewsController {
   }
 
   @Get(':id')
-  @CacheTTL(30) // Cache individual news for 30 seconds
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(30)
   findOne(@Param('id') id: string) {
     return this.newsService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateNewsDto: UpdateNewsDto,
     @GetUser()
@@ -60,18 +78,32 @@ export class NewsController {
       userId: string;
     },
   ) {
-    return this.newsService.update(id, updateNewsDto, user.userId);
+    const result = await this.newsService.update(
+      id,
+      updateNewsDto,
+      user.userId,
+    );
+
+    await this.cacheManager.del('news_all');
+    await this.cacheManager.clear();
+
+    return result;
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(
+  async remove(
     @Param('id') id: string,
     @GetUser()
     user: {
       userId: string;
     },
   ) {
-    return this.newsService.remove(id, user.userId);
+    const result = await this.newsService.remove(id, user.userId);
+
+    await this.cacheManager.del('news_all');
+    await this.cacheManager.clear();
+
+    return result;
   }
 }

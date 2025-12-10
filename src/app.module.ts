@@ -37,8 +37,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         store: redisStore,
         host: configService.get<string>('REDIS_HOST', 'localhost'),
         port: configService.get<number>('REDIS_PORT', 6379),
-        ttl: configService.get<number>('CACHE_TTL', 300), // 5 minutes default
-        max: 100, // Maximum number of items in cache
+        ttl: configService.get<number>('CACHE_TTL', 300),
+        max: 100,
       }),
     }),
     AuthModule,

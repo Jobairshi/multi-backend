@@ -78,6 +78,7 @@ export class NewsService {
   }
 
   async findByAuthor(userId: string): Promise<News[]> {
-    return this.newsRepository.findBy({ userId });
+    const res = await this.newsRepository.findBy({ userId });
+    return res;
   }
 }
